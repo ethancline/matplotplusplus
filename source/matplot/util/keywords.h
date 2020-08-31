@@ -5,6 +5,8 @@
 #ifndef MATPLOTPLUSPLUS_KEYWORDS_H
 #define MATPLOTPLUSPLUS_KEYWORDS_H
 
+#include <limits>
+
 namespace matplot {
     class keyword_automatic_type {};
     constexpr keyword_automatic_type automatic;
@@ -35,6 +37,6 @@ namespace matplot {
 
     constexpr double inf = std::numeric_limits<double>::infinity();
 
-}
+} // namespace matplot
 
-#endif //MATPLOTPLUSPLUS_KEYWORDS_H
+#endif // MATPLOTPLUSPLUS_KEYWORDS_H

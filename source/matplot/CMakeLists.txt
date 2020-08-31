@@ -1,4 +1,4 @@
-include(FindDependencies.cmake)
+find_package(Filesystem REQUIRED)
 
 add_library(matplot
         matplot.h
@@ -84,7 +84,33 @@ add_library(matplot
 )
 
 target_include_directories(matplot PUBLIC ${MATPLOT_ROOT_DIR}/source)
-target_link_libraries(matplot PUBLIC nodesoup cimg)
+target_link_libraries(matplot PUBLIC nodesoup cimg std::filesystem)
+
+# https://cmake.org/cmake/help/v3.14/manual/cmake-compile-features.7.html#requiring-language-standards
+target_compile_features(matplot PUBLIC cxx_std_17)
+
+# Hacks to support MSVC
+if(MSVC)
+    # World maps require this option because there is so much in the file
+    target_compile_options(matplot PRIVATE /bigobj)
+    target_compile_options(matplot PUBLIC /wd4305)
+endif()
+
+include(CheckSymbolExists)
+
+# Some hack to not depend on FILE* internals
+# https://github.com/alandefreitas/matplotplusplus/issues/4
+check_symbol_exists(__fbufsize "stdio_ext.h" HAVE_FBUFSIZE)
+if (HAVE_FBUFSIZE)
+    target_compile_definitions(matplot PRIVATE MATPLOT_HAS_FBUFSIZE)
+endif()
+
+# Another hack to check for min in Windows.h
+# http://www.suodenjoki.dk/us/archive/2010/min-max.htm
+check_symbol_exists(min "Windows.h" HAVE_WINDOWS_MINMAX)
+if (HAVE_WINDOWS_MINMAX)
+    target_compile_definitions(matplot PUBLIC NOMINMAX)
+endif()
 
 if (BUILD_FOR_DOCUMENTATION_IMAGES)
     message("Building matplot for documentation images. wait() commands will be ignored. ~figure will save the files.")
@@ -97,21 +123,22 @@ else()
     message("Not including the high resolution maps for geoplots")
 endif()
 
-find_package(OpenGL)
-if (NOT OPENGL_FOUND)
-    return()
-endif()
-
-if (NOT TARGET glad)
-    CPMAddPackage(NAME glad GIT_REPOSITORY https://github.com/Dav1dde/glad GIT_TAG df8e9e16110b305479a875399cee13daa0ccadd9 VERSION 0.1.33)
-endif()
-
-if (NOT TARGET glfw)
-    CPMAddPackage(NAME glfw GIT_REPOSITORY https://github.com/glfw/glfw VERSION 3.3.2 GIT_TAG 3.3.2 OPTIONS "GLFW_BUILD_DOCS OFF" "GLFW_BUILD_EXAMPLES OFF" "GLFW_BUILD_TESTS OFF" "GLFW_INSTALL OFF")
-endif()
-
 # Library for the OpenGL example
-add_library(matplot_opengl
-        backend/opengl_3.h
-        backend/opengl_3.cpp)
-target_link_libraries(matplot_opengl PUBLIC matplot glad glfw)
+# This is an example of what an OpenGL backend *could* look like.
+# We would need to adapt the axes objects to feed this backend
+#     with polygons and colors instead of commands, which is not
+#     a problem at all. The data is all prepared in these objects.
+#     We would not have to convert this data to strings and would
+#     not have to worry about an external syntax.
+# The biggest challenge is to actually create backends that can
+#     draw these polygons we feed them.
+# We discuss some of these difficulties in the documentation
+#     and the backend_interface.h.
+find_package(OpenGL)
+find_package(GLAD)
+find_package(glfw3 QUIET)
+if (OpenGL_FOUND AND GLAD_FOUND AND glfw3_FOUND)
+    add_library(matplot_opengl backend/opengl_3.h backend/opengl_3.cpp)
+    target_include_directories(matplot_opengl PUBLIC matplot ${GLAD_INCLUDE_PATH})
+    target_link_libraries(matplot_opengl PUBLIC matplot ${GLAD_LIBRARIES} glfw)
+endif()

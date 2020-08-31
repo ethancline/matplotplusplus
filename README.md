@@ -30,13 +30,10 @@ Data visualization can help programmers and scientists identify trends in their 
      * [CMake (manual download)](#cmake-manual-download)
      * [CMake (automatic download)](#cmake-automatic-download)
      * [Other build systems](#other-build-systems)
+     * [Dependencies](#dependencies)
      * [Backends](#backends)
-     * [Compatibility](#compatibility)
      * [Contributing](#contributing)
   * [References](#references)
-
-<!-- Added by: alanfreitas, at: Fri Aug 28 21:36:48 -03 2020 -->
-
 <!--te-->
 
 
@@ -1415,7 +1412,9 @@ Then add this header to your source files:
 
 ### Other build systems 
 
-If you're not using Cmake, your project needs to include the headers and compile all source files in the [`source`](source) directory. You also need to link with the dependencies described in [`source/matplot/FindDependencies.cmake`](source/matplot/FindDependencies.cmake).
+Right now, it really doesn't have support for anything other than CMake. If you really want to use it in another build system you pretty much have to rewrite the entire build script.
+
+If you're not using Cmake, your project needs to include the headers and compile all source files in the [`source`](source) directory. You also need to link with the dependencies described in [`source/3rd_party/CMakeLists.txt`](source/3rd_party/CMakeLists.txt).
 
 Then add this header to your source files:
 
@@ -1423,13 +1422,52 @@ Then add this header to your source files:
 #include <matplot/matplot.h>
 ```   
 
+### Dependencies
+
+This project requires C++17. You can see other dependencies in [`source/3rd_party/CMakeLists.txt`](source/3rd_party/CMakeLists.txt). CMake will try to solve everything for you.
+
+* Required 
+    * olvb/nodesoup (bundled; but you can define `WITH_SYSTEM_NODESOUP=ON` in the cmake command line to use a system-provided version of nodesoup)
+    * dtschump/CImg (bundled; but you can define `WITH_SYSTEM_CIMG=ON` in the cmake command line to use a system-provided version of CImg)
+    * Gnuplot (for the Gnuplot backend only)
+* Optional (for images)
+    * JPEG
+    * TIFF
+    * ZLIB
+    * PNG
+    * LAPACK
+    * BLAS
+    * FFTW
+    * OpenCV
+    * OPENEXR
+    * MAGICK
+
+There's an extra target `matplot_opengl` that exemplifies how an OpenGL backend **could** be implemented. It's not a complete backend. If you want to test it, only then there are some extra dependencies.
+
+* Dependencies for the OpenGL backend
+    * OpenGL
+    * GLAD
+    * GLFW3
+
 ### Backends
 
-Coming up with new backends is a continuous process. See the complete [article](documentation/README.md) for a description of the backend interface and a discussion of the current backends. See the directory [`source/matplot/backend`](source/matplot/backend) to see some examples. Also, have a look at this example [`test/backends/main.cpp`](test/backends/main.cpp).
+Coming up with new backends is a continuous process. See the complete [article](documentation/README.md) for a description of the [backend interface](source/matplot/backend/backend_interface.h), a description of the current default backend ([Gnuplot pipe](source/matplot/backend/gnuplot.h)), and what's involved in possible [new backends](documentation/README.md#backends). See the directory [`source/matplot/backend`](source/matplot/backend) for some examples. Also, have a look at this example [`test/backends/main.cpp`](test/backends/main.cpp). 
 
-### Compatibility
+If you're in a hurry, here is a summary of the backends we have and the backends we have been considering or working on:
 
-So far, this library has only been tested with Clang. More tests are welcome.
+* Gnuplot
+    * Pros: It seems to be working for everyone. *In practice, this is current default backend you'll get right now.*
+    * Cons: Pipes are comparatively slow and unidirectional
+* OpenGL
+    * Pros: Efficient for many FPS
+    * Cons: Unacceptably blocks the main thread on some operating systems
+* AGG
+    * Pros: Great for vector graphics
+    * Cons: Unmaintained, 2D only, and non-interactive by itself
+* Qt / QPainter
+    * Cons: Unacceptably blocks the main thread on some operating systems
+* OpenCV
+* Elements
 
 ### Contributing
 
@@ -1437,7 +1475,7 @@ There are many ways in which you can contribute to this library:
 
 * Testing the library in new environments
 * Contributing with interesting examples
-* Designing new backends
+* Designing new backends <sup>see [1](source/matplot/backend/backend_interface.h), [2](#backends), [3](documentation/README.md#backends)</sup>
 * Finding problems in this documentation
 * Writing algorithms for new plot categories
 * Finding bugs in general
